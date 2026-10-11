@@ -166,7 +166,8 @@
       const stops = received.map(normalizeStop).filter(stop => stop.street && stop.municipality);
       if (!stops.length) throw new Error("Nenhum endereço encontrado");
       state.stops = stops; state.orderIds = stops.map(stop => stop.id); state.route = null; state.source = "bookmarklet";
-      status(els.importStatus, `${stops.length} ${stops.length === 1 ? "parada importada" : "paradas importadas"}. Revise município e endereço antes de otimizar.`, "good");
+      const zipCount = stops.filter(stop => stop.postalCode).length;
+      status(els.importStatus, `${stops.length} ${stops.length === 1 ? "parada importada" : "paradas importadas"}; ${zipCount} ${zipCount === 1 ? "tem CEP" : "têm CEP"}. Revise os dados antes de otimizar.`, "good");
       $("pasteBox").value = ""; refresh(); showMessage("Entregas importadas. Confira os endereços.");
       document.getElementById("screen-route").scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error) {

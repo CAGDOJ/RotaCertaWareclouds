@@ -2,11 +2,18 @@ const assert = require("node:assert/strict");
 const vm = require("node:vm");
 const { parseImport, optimizeOrder, routeCost, buildBookmarklet, geocodeQueries } = require("../dist/core.js");
 
+async function main() {
+
 assert.deepEqual(geocodeQueries("PSG PERPETUO SOCORRO,185, Belém, Brasil"), [
   "Passagem PERPETUO SOCORRO, 185, Belém, Brasil",
   "PSG PERPETUO SOCORRO, 185, Belém, Brasil"
 ]);
 assert.deepEqual(geocodeQueries("Av. Nazaré, 10, Belém"), ["Avenida Nazaré, 10, Belém", "Av. Nazaré, 10, Belém"]);
+assert.deepEqual(geocodeQueries("QUATORZE DE MARÇO,1561, Belém, 66055-490, Brasil"), [
+  "Travessa Quatorze de Março, 1561, Belém, 66055-490, Brasil",
+  "QUATORZE DE MARÇO, 1561, Belém, 66055-490, Brasil",
+  "66055-490, Belém, Pará, Brasil"
+]);
 
 const warecloudsText = `
 902959898
@@ -42,19 +49,30 @@ assert.equal(colonLabels[0].municipality, "Belém");
 
 const bookmarklet = buildBookmarklet("https://rota.example/");
 const bookmarkTarget = { href: "" };
-const context = { document: { body: { innerText: warecloudsText } }, location: bookmarkTarget, alert() {}, btoa, unescape, encodeURIComponent, Date };
-vm.runInNewContext(bookmarklet.slice("javascript:".length), context);
+let detailsExpanded = false;
+const importTextWithoutZip = warecloudsText.replace("CEP\n66040-036\n", "");
+const moreInfoButton = { innerText: "Mais informações", click() { detailsExpanded = true; } };
+const context = {
+  document: {
+    body: { get innerText() { return detailsExpanded ? importTextWithoutZip.replace("Comentários", "CEP\n66040-036\nComentários") : importTextWithoutZip; } },
+    querySelectorAll: () => detailsExpanded ? [] : [moreInfoButton]
+  },
+  location: bookmarkTarget, alert() {}, btoa, unescape, encodeURIComponent, Date,
+  setTimeout(callback) { callback(); }
+};
+await vm.runInNewContext(bookmarklet.slice("javascript:".length), context);
 assert.ok(bookmarkTarget.href.startsWith("https://rota.example/#import="));
 const packed = bookmarkTarget.href.split("#import=")[1];
 const captured = JSON.parse(decodeURIComponent(Buffer.from(packed, "base64").toString("binary")));
 assert.equal(captured.length, 1);
 assert.equal(captured[0].street, "Rua de Exemplo, 2448");
+assert.equal(captured[0].postalCode, "66040-036");
 assert.ok(!JSON.stringify(captured).includes("NOME QUE NÃO DEVE SER IMPORTADO"));
 assert.ok(!JSON.stringify(captured).includes("91999999999"));
 
 const colonBookmarkTarget = { href: "" };
-const colonBookmarkContext = { document: { body: { innerText: "Endereço:\nAv. Exemplo, 10\nMunicípio:\nBelém" } }, location: colonBookmarkTarget, alert() {}, btoa, unescape, encodeURIComponent, Date };
-vm.runInNewContext(bookmarklet.slice("javascript:".length), colonBookmarkContext);
+const colonBookmarkContext = { document: { body: { innerText: "Endereço:\nAv. Exemplo, 10\nMunicípio:\nBelém" }, querySelectorAll: () => [] }, location: colonBookmarkTarget, alert() {}, btoa, unescape, encodeURIComponent, Date, setTimeout(callback) { callback(); } };
+await vm.runInNewContext(bookmarklet.slice("javascript:".length), colonBookmarkContext);
 const colonCaptured = JSON.parse(decodeURIComponent(Buffer.from(colonBookmarkTarget.href.split("#import=")[1], "base64").toString("binary")));
 assert.equal(colonCaptured.length, 1);
 assert.equal(colonCaptured[0].street, "Av. Exemplo, 10");
@@ -70,3 +88,6 @@ assert.deepEqual([...order].sort((a, b) => a - b), [1, 2, 3]);
 assert.ok(routeCost(order, matrix, false) <= routeCost([1, 2, 3], matrix, false));
 assert.equal(order.length, 3);
 console.log("Core parser and route ordering checks passed.");
+}
+
+main().catch(error => { console.error(error); process.exitCode = 1; });

@@ -14,7 +14,17 @@
       .replace(/^\s*r\.?\s+/i, "Rua ")
       .replace(/^\s*al\.?\s+/i, "Alameda ")
       .replace(/^\s*rod\.?\s+/i, "Rodovia ");
-    return [...new Set([expanded, original].filter(Boolean))];
+    const normalized = value => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const normalizedAddress = normalized(original);
+    const belémQuatorzeDeMarco = /\bbele[mn]\b/.test(normalizedAddress) && /^\s*(?:quatorze|14)\s+de\s+marco\b/i.test(normalizedAddress);
+    const quatorzeVariant = belémQuatorzeDeMarco
+      ? original.replace(/^\s*(?:quatorze|14)\s+de\s+mar[cç]o\b/i, "Travessa Quatorze de Março")
+      : "";
+    const postalCode = original.match(/\b\d{5}-?\d{3}\b/);
+    const postalQuery = postalCode && /\bbele[mn]\b/.test(normalizedAddress)
+      ? `${postalCode[0]}, Belém, Pará, Brasil`
+      : "";
+    return [...new Set([quatorzeVariant, expanded, original, postalQuery].filter(Boolean))];
   }
   const fieldNames = {
     address: ["endereco", "endereco de entrega"], city: ["municipio", "municipio de entrega", "cidade", "cidade/uf"], block: ["departamento/de/bloco", "bairro", "complemento"],
@@ -93,7 +103,7 @@
     return labeled.length ? labeled : parseCsv(text);
   }
   function buildBookmarklet(target) {
-    const code = `(()=>{try{const n=s=>String(s||"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[:：]+$/u,"").trim();const l=(document.body.innerText||"").split(/\\r?\\n/).map(s=>s.trim()).filter(Boolean);const out=[];let ref="";for(let i=0;i<l.length;i++){if(/^\\d{7,10}$/.test(l[i]))ref=l[i];if(!["endereco","endereco de entrega"].includes(n(l[i])))continue;const val=(keys)=>{for(let j=i+1;j<Math.min(l.length,i+14);j++)if(keys.includes(n(l[j])))return (l[j+1]||"").trim();return ""};const street=(l[i+1]||"").trim(),city=val(["municipio","municipio de entrega","cidade","cidade/uf"]),block=val(["departamento/de/bloco","bairro","complemento"]),zip=val(["cep"]);let note="";for(let j=i+1;j<Math.min(l.length,i+14);j++)if(["comentario","comentarios"].includes(n(l[j]))){const a=[];for(let k=j+1;k<Math.min(l.length,j+4);k++){if(!l[k]||/^(telefone|documento|rg)(?:\\s|$)/.test(n(l[k]))||["loja","cep","endereco","endereco de entrega","municipio","municipio de entrega"].includes(n(l[k])))break;a.push(l[k].trim())}note=a.join(" ");break}if(street&&city){out.push({id:"wc-"+out.length+"-"+Date.now(),orderRef:ref?"Pedido "+ref:"Parada "+(out.length+1),street,block,municipality:city,postalCode:zip,note,address:[street,block,city,zip,"Brasil"].filter(Boolean).join(", ")});ref=""}}if(!out.length){alert("Não encontrei endereços nesta tela. Abra Pedidos > Entregar e aguarde os pedidos aparecerem antes de tocar no favorito.");return}const payload=btoa(unescape(encodeURIComponent(JSON.stringify(out))));location.href=${JSON.stringify(target)}+"#import="+payload}catch(e){alert("Falha ao ler a lista. Tente copiar e colar o texto na Rota Certa.")}})()`;
+    const code = `(async()=>{try{const n=s=>String(s||"").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[:：]+$/u,"").trim();const pause=ms=>new Promise(r=>setTimeout(r,ms));for(let pass=0;pass<3;pass++){const more=[...document.querySelectorAll("button,[role=button],summary,a")].filter(e=>n(e.innerText||e.textContent||e.getAttribute("aria-label"))==="mais informacoes");if(!more.length)break;for(const e of more)e.click();await pause(400)}const l=(document.body.innerText||"").split(/\\r?\\n/).map(s=>s.trim()).filter(Boolean);const out=[];let ref="";for(let i=0;i<l.length;i++){if(/^\\d{7,10}$/.test(l[i]))ref=l[i];if(!["endereco","endereco de entrega"].includes(n(l[i])))continue;const val=(keys)=>{for(let j=i+1;j<Math.min(l.length,i+28);j++)if(keys.includes(n(l[j])))return (l[j+1]||"").trim();return ""};const street=(l[i+1]||"").trim(),city=val(["municipio","municipio de entrega","cidade","cidade/uf"]),block=val(["departamento/de/bloco","bairro","complemento"]),zip=val(["cep"]);let note="";for(let j=i+1;j<Math.min(l.length,i+28);j++)if(["comentario","comentarios"].includes(n(l[j]))){const a=[];for(let k=j+1;k<Math.min(l.length,j+4);k++){if(!l[k]||/^(telefone|documento|rg)(?:\\s|$)/.test(n(l[k]))||["loja","cep","endereco","endereco de entrega","municipio","municipio de entrega"].includes(n(l[k])))break;a.push(l[k].trim())}note=a.join(" ");break}if(street&&city){out.push({id:"wc-"+out.length+"-"+Date.now(),orderRef:ref?"Pedido "+ref:"Parada "+(out.length+1),street,block,municipality:city,postalCode:zip,note,address:[street,block,city,zip,"Brasil"].filter(Boolean).join(", ")});ref=""}}if(!out.length){alert("Não encontrei endereços nesta tela. Abra Pedidos > Entregar e tente o favorito novamente.");return}const payload=btoa(unescape(encodeURIComponent(JSON.stringify(out))));location.href=${JSON.stringify(target)}+"#import="+payload}catch(e){alert("Falha ao ler a lista. Tente copiar e colar o texto na Rota Certa.")}})()`;
     return `javascript:${code}`;
   }
   function cryptoId() {
