@@ -29,6 +29,11 @@ assert.equal(parsed[0].note, "Entre duas ruas");
 assert.ok(!JSON.stringify(parsed).includes("NOME QUE NÃO DEVE SER IMPORTADO"));
 assert.ok(!JSON.stringify(parsed).includes("91999999999"));
 
+const colonLabels = parseImport("Endereço:\nAv. Exemplo, 10\nMunicípio:\nBelém");
+assert.equal(colonLabels.length, 1);
+assert.equal(colonLabels[0].street, "Av. Exemplo, 10");
+assert.equal(colonLabels[0].municipality, "Belém");
+
 const bookmarklet = buildBookmarklet("https://rota.example/");
 const bookmarkTarget = { href: "" };
 const context = { document: { body: { innerText: warecloudsText } }, location: bookmarkTarget, alert() {}, btoa, unescape, encodeURIComponent, Date };
@@ -40,6 +45,13 @@ assert.equal(captured.length, 1);
 assert.equal(captured[0].street, "Rua de Exemplo, 2448");
 assert.ok(!JSON.stringify(captured).includes("NOME QUE NÃO DEVE SER IMPORTADO"));
 assert.ok(!JSON.stringify(captured).includes("91999999999"));
+
+const colonBookmarkTarget = { href: "" };
+const colonBookmarkContext = { document: { body: { innerText: "Endereço:\nAv. Exemplo, 10\nMunicípio:\nBelém" } }, location: colonBookmarkTarget, alert() {}, btoa, unescape, encodeURIComponent, Date };
+vm.runInNewContext(bookmarklet.slice("javascript:".length), colonBookmarkContext);
+const colonCaptured = JSON.parse(decodeURIComponent(Buffer.from(colonBookmarkTarget.href.split("#import=")[1], "base64").toString("binary")));
+assert.equal(colonCaptured.length, 1);
+assert.equal(colonCaptured[0].street, "Av. Exemplo, 10");
 
 const matrix = [
   [0, 7, 2, 9],
