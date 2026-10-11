@@ -1,0 +1,13 @@
+{
+  "name": "Rota Certa — Entregas",
+  "short_name": "Rota Certa",
+  "description": "Organize e acompanhe sua rota de entregas no celular.",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f3f6fb",
+  "theme_color": "#1556c0",
+  "icons": [{ "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
