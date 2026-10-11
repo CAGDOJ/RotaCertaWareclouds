@@ -1,6 +1,12 @@
 const assert = require("node:assert/strict");
 const vm = require("node:vm");
-const { parseImport, optimizeOrder, routeCost, buildBookmarklet, geocodeQueries } = require("../dist/core.js");
+const fs = require("node:fs");
+const moduleScope = { exports: {} };
+vm.runInNewContext(fs.readFileSync(require("node:path").join(__dirname, "../dist/core.js"), "utf8"), { module: moduleScope, console, TextEncoder, btoa, setTimeout });
+const core = moduleScope.exports;
+const { optimizeOrder, routeCost, buildBookmarklet } = core;
+const parseImport = value => JSON.parse(JSON.stringify(core.parseImport(value)));
+const geocodeQueries = value => Array.from(core.geocodeQueries(value));
 
 async function main() {
 
@@ -91,3 +97,14 @@ console.log("Core parser and route ordering checks passed.");
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; });
+
+const alternateLabels = parseImport('Endereço de entrega:\nRua Exemplo, 10\nMunicípio de entrega:\nBelém');
+assert.equal(alternateLabels.length, 1);
+assert.equal(alternateLabels[0].municipality, 'Belém');
+const noCrossOrder = parseImport('902111111\nEndereço\nRua A, 1\n902222222\nEndereço\nRua B, 2\nMunicípio\nBelém\nCEP\n66000-001');
+assert.equal(noCrossOrder.length, 1);
+assert.equal(noCrossOrder[0].street, 'Rua B, 2');
+assert.equal(noCrossOrder[0].orderRef, 'Pedido 902222222');
+const noCrossZip = parseImport('Endereço\nRua A, 1\nMunicípio\nBelém\nEndereço\nRua B, 2\nMunicípio\nBelém\nCEP\n66000-002');
+assert.equal(noCrossZip[0].postalCode, '');
+assert.equal(noCrossZip[1].postalCode, '66000-002');

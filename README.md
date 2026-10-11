@@ -1,24 +1,42 @@
-# Rota Certa — celular
+# Rota Certa — entregas Wareclouds pelo celular
 
-Primeiro protótipo móvel para organizar entregas vistas na Wareclouds. A tela de origem continua responsável por confirmar cada entrega; este projeto importa endereços e monta uma sequência de visita.
+## Como usar
 
-## Fluxo no celular
+1. Abra o [Rota Certa](https://cagdoj.github.io/RotaCertaWareclouds/) e toque em **Importar**.
+2. Entre com seu usuário e senha da Wareclouds e toque em **Entrar e importar**.
+3. As entregas da aba **Entregar** são carregadas com endereço, município, CEP e complemento disponíveis.
+4. Escolha a saída, autorize os serviços de mapa e toque em **Otimizar**.
 
-1. Abra a Wareclouds e entre na sua conta normalmente.
-2. Importe pelo favorito de captura ou cole o texto/CSV da lista.
-3. Confira os endereços importados e corrija os que estiverem incompletos.
-4. Defina a saída, marque a autorização de serviços de mapa e toque em **Otimizar**.
-5. Siga a sequência e abra cada próxima parada no Maps. As marcações de concluída ficam somente nesta lista.
+A Wareclouds continua responsável por registrar as entregas. A lista por texto/CSV fica disponível como opção secundária.
 
-## Privacidade e limites
+## Conexão e privacidade
 
-- O importador extrai endereço, município, bloco, CEP, comentário de referência e, quando visível, código do pedido. Não extrai nome, telefone ou documento do destinatário.
-- A lista e o progresso ficam no `localStorage` do navegador do aparelho. Não há conta ou sincronização.
-- Ao otimizar, os endereços vão ao Nominatim para geocodificação e as coordenadas vão ao OSRM para calcular distâncias e ordem. A caixa de autorização começa desmarcada.
-- O Nominatim público limita o uso a no máximo uma requisição por segundo; o OSRM público é uma instância de demonstração. O serviço pode limitar ou interromper consultas. Para vários usuários ou uso comercial, configurar um fornecedor de mapas com contrato e capacidade apropriada.
-- A distância e o tempo não incluem trânsito ou tempo de atendimento. A ordem é uma aproximação baseada nos tempos da matriz rodoviária.
-- A captura via favorito executa o código na página já autenticada da Wareclouds. Ela só funciona depois que o favorito for configurado no Safari; o campo de texto/CSV é a alternativa.
+- O frontend é publicado no GitHub Pages. O serviço de importação roda em HTTPS em `https://rotacerta-mobile.carlosjralfa.chatgpt.site/api/wareclouds/import`.
+- O servidor autentica normalmente na Wareclouds com HTTP Basic em `/login/clouder` e usa o token retornado somente para ler `/clouders/orders/in-route-to-consumer`. Não modifica pedidos.
+- São utilizados os endpoints do cliente web público da Wareclouds. Essa integração independente depende da disponibilidade e do formato desses endpoints; mudanças na plataforma podem exigir atualização.
+- Senha e tokens não são gravados nem retornados pelo serviço. O formulário apaga a senha ao terminar ou cancelar. O navegador pode oferecer seu próprio gerenciador de senhas.
+- A resposta usa uma lista explícita de campos de rota; não inclui campos de nome, telefone, e-mail ou documento do destinatário.
+- A lista e a rota ficam no armazenamento local do aparelho. Um erro de login ou uma resposta incompleta preserva a lista anterior. Uma importação bem-sucedida sem pedidos limpa a lista anterior para evitar usar entregas antigas.
+- O serviço aceita requisições dos dois sites do Rota Certa, limita o tamanho do formulário e aplica uma proteção de tentativas por IP na memória do Worker. Essa proteção é por instância, sem garantia de limite global.
+- Os endereços são enviados ao Nominatim e coordenadas ao OSRM ao otimizar. São serviços públicos com limites; distância e tempo são estimativas sem trânsito ou atendimento.
 
-## Publicar como site estático
+## Código e publicação
 
-Sirva `dist/` por HTTPS para que localização do celular e instalação na tela inicial funcionem. O manifesto e o service worker estão incluídos. A integração direta com a Wareclouds depende de uma API oficial ou de um importador executado pelo usuário na página já aberta.
+- `dist/`: aplicação móvel e assets estáticos usados tanto pelo GitHub Pages quanto pelo Site.
+- `lib/wareclouds.mjs`: autenticação, leitura e seleção dos campos importados.
+- `app/api/wareclouds/import/route.ts`: endpoint do Worker via Vinext.
+- `.github/workflows/pages.yml`: publica `dist/` no GitHub Pages.
+- `.openai/hosting.json`: identidade e configuração do Site que hospeda o Worker.
+
+Instalação e build seguem os scripts fornecidos pelo Sites; não envie senhas em arquivos, variáveis globais de código ou URLs.
+
+Verificações:
+
+```sh
+node tests/core.test.cjs
+node tests/wareclouds.test.mjs
+node tests/import-flow.test.cjs
+npm run build
+```
+
+O GitHub Pages serve apenas a interface estática. O serviço de login roda no endereço HTTPS indicado acima; seu build e configuração são mantidos no projeto Sites.

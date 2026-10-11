@@ -3,7 +3,8 @@
   const CORE = window.RouteCore;
   const STORE_KEY = "rotacerta.mobile.state.v1";
   const CACHE_KEY = "rotacerta.geocode.cache.v1";
-  const WARECLOUDS_URL = "https://b2c-clouder-br-prod.web.app/orders/dashboard";
+  const IMPORT_API = "https://rotacerta-mobile.carlosjralfa.chatgpt.site/api/wareclouds/import";
+  let importController = null;
   const OSRM = "https://router.project-osrm.org";
   const NOMINATIM = "https://nominatim.openstreetmap.org/search";
   const $ = id => document.getElementById(id);
@@ -50,7 +51,7 @@
     return {
       id: String(stop.id || `stop-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 6)}`),
       orderRef: String(stop.orderRef || stop.code || `Parada ${index + 1}`).slice(0, 50),
-      street, block, municipality: city, postalCode: zip, note: String(stop.note || "").slice(0, 240),
+      street, block, municipality: city, postalCode: zip, addressDetail: String(stop.addressDetail || "").slice(0, 200), note: String(stop.note || "").slice(0, 240),
       address: String(stop.address || [street, block, city, zip, "Brasil"].filter(Boolean).join(", ")).trim(),
       lat: Number.isFinite(Number(stop.lat)) && stop.lat !== null ? Number(stop.lat) : null,
       lon: Number.isFinite(Number(stop.lon)) && stop.lon !== null ? Number(stop.lon) : null,
@@ -64,7 +65,7 @@
   }
   function setBusy(busy) {
     state.busy = busy;
-    [$("optimizeButton"), $("reoptimizeButton"), $("parsePaste"), $("clearRoute")].forEach(button => { if (button) button.disabled = busy; });
+    [$("optimizeButton"), $("reoptimizeButton"), $("parsePaste"), $("clearRoute"), $("importWareclouds"), $("openWarecloudsTop")].forEach(button => { if (button) button.disabled = busy; });
   }
   function progress(value, visible = true) {
     els.progressWrap.hidden = !visible;
@@ -109,7 +110,7 @@
         <div class="stop-index">${ordered ? position + 1 : "•"}</div>
         <div class="stop-main"><div class="stop-head"><div><div class="stop-title">${escapeHTML(stop.orderRef)}</div><div class="stop-order">${escapeHTML(stop.municipality || "Município não informado")}</div></div>
           ${preview ? "" : `<div class="stop-tools"><button class="move-button" data-move="up" data-id="${escapeHTML(stop.id)}" aria-label="Mover para cima" ${position <= 0 ? "disabled" : ""}>↑</button><button class="move-button" data-move="down" data-id="${escapeHTML(stop.id)}" aria-label="Mover para baixo" ${position >= allOrdered.length - 1 ? "disabled" : ""}>↓</button></div>`}</div>
-          <div class="stop-address">${escapeHTML(address)}</div>${stop.note ? `<div class="stop-note">Referência: ${escapeHTML(stop.note)}</div>` : ""}
+          <div class="stop-address">${escapeHTML(address)}</div>${stop.addressDetail ? `<div class="stop-note">Complemento: ${escapeHTML(stop.addressDetail)}</div>` : ""}${stop.note ? `<div class="stop-note">Referência: ${escapeHTML(stop.note)}</div>` : ""}
           <div class="stop-actions">${preview ? `<button class="button danger small" data-remove="${escapeHTML(stop.id)}" type="button">Remover</button>` : `<label class="button ghost small"><input class="check-stop" type="checkbox" data-done="${escapeHTML(stop.id)}" ${stop.done ? "checked" : ""}>Concluída nesta lista</label>${Number.isFinite(stop.lat) && Number.isFinite(stop.lon) ? `<a class="button secondary small" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${stop.lat},${stop.lon}`)}&travelmode=driving" target="_blank" rel="noopener">Navegar ↗</a>` : ""}`}<button class="button ghost small" data-edit="${escapeHTML(stop.id)}" type="button">Editar</button></div>
         </div></article>`;
     }).join("");
@@ -136,18 +137,58 @@
     }
     persist();
   }
-  function baseForBookmark() { return `${location.origin}${location.pathname}`; }
-  function createBookmarklet() {
-    return CORE.buildBookmarklet(baseForBookmark());
+  function openImportLogin() {
+    if (state.busy) { showMessage("Aguarde o cálculo terminar."); return; }
+    status($("loginStatus"), "");
+    $("warecloudsDialog").showModal();
   }
-  async function copyBookmarklet() {
-    const code = createBookmarklet();
-    $("bookmarkletPreview").textContent = code;
+  function closeImportLogin() {
+    if (importController) importController.abort();
+    $("warecloudsPassword").value = "";
+    $("warecloudsDialog").close();
+  }
+  async function importWareclouds(event) {
+    event.preventDefault();
+    if (state.busy) return;
+    const username = $("warecloudsUsername").value.trim();
+    const password = $("warecloudsPassword").value;
+    if (!username || !password) return;
+    const controller = new AbortController(); importController = controller;
+    const timeout = setTimeout(() => controller.abort(), 70000);
+    setBusy(true); $("submitWareclouds").disabled = true;
+    $("submitWareclouds").textContent = "Importando entregas…";
+    status($("loginStatus"), "Conectando à Wareclouds e buscando os endereços completos…");
     try {
-      await navigator.clipboard.writeText(code); showMessage("Importador copiado. Agora salve como favorito no Safari.");
-      status(els.importStatus, "Atalho de captura copiado. Siga as instruções em ‘Configurar captura rápida’. ", "good");
-    } catch (_) {
-      status(els.importStatus, "O navegador bloqueou a cópia. Selecione e copie o código exibido nas instruções.", "error");
+      const response = await fetch(IMPORT_API, {
+        method: "POST", credentials: "omit", cache: "no-store", referrerPolicy: "no-referrer",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }), signal: controller.signal
+      });
+      const data = await response.json().catch(() => { throw new Error("O serviço de importação respondeu de forma inesperada. Tente novamente em instantes."); });
+      if (!response.ok) throw new Error(`${data.error || "Não foi possível importar agora."}${data.code ? ` (Código: ${data.code})` : ""}`);
+      if (!Array.isArray(data.stops)) throw new Error("A lista recebida está incompleta. Tente novamente.");
+      const stops = data.stops.map(normalizeStop);
+      if (stops.some(stop => !stop.street || !stop.municipality)) throw new Error("A lista recebida tem endereços incompletos. Tente novamente.");
+      state.stops = stops; state.orderIds = stops.map(stop => stop.id); state.route = null; state.source = "wareclouds-login";
+      els.pasteBox.value = ""; refresh();
+      const missingCep = stops.filter(stop => !stop.postalCode).length;
+      const message = stops.length
+        ? `${stops.length} entrega(s) importada(s).${missingCep ? ` ${missingCep} sem CEP na Wareclouds.` : " Endereços e CEPs carregados."}`
+        : "Não há pedidos na aba Entregar da Wareclouds. Sua lista foi atualizada.";
+      status(els.importStatus, message, "good");
+      importController = null; closeImportLogin(); showMessage(message);
+      if (stops.length) {
+        document.querySelectorAll(".tab").forEach(tab => tab.classList.toggle("active", tab.dataset.screen === "screen-route"));
+        $("screen-route").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    } catch (error) {
+      const message = error.name === "AbortError" ? "Importação interrompida. Toque em Entrar e importar para tentar novamente." :
+        error instanceof TypeError ? "Não consegui conectar. Confira a internet e tente novamente." : error.message;
+      if ($("warecloudsDialog").open) status($("loginStatus"), message, "error");
+      else status(els.importStatus, message, "error");
+    } finally {
+      clearTimeout(timeout); importController = null; $("warecloudsPassword").value = "";
+      setBusy(false); $("submitWareclouds").disabled = false; $("submitWareclouds").textContent = "Entrar e importar";
     }
   }
   function decodePayload(payload) {
@@ -373,14 +414,12 @@
     }));
   }
   function attachEvents() {
-    function startWarecloudsImport() {
-      $("captureHelp").open = true;
-      status(els.importStatus, "Wareclouds aberta. Entre na sua conta e toque no favorito “Rota Certa” para trazer os endereços para cá.", "good");
-    }
-    $("openWareclouds").addEventListener("click", startWarecloudsImport);
-    $("openWarecloudsTop").addEventListener("click", () => { startWarecloudsImport(); window.open(WARECLOUDS_URL, "_blank", "noopener"); });
-    $("helpButton").addEventListener("click", () => { $("captureHelp").open = true; $("captureHelp").scrollIntoView({ behavior: "smooth", block: "center" }); });
-    $("copyBookmarklet").addEventListener("click", copyBookmarklet);
+    $("importWareclouds").addEventListener("click", openImportLogin);
+    $("openWarecloudsTop").addEventListener("click", openImportLogin);
+    $("warecloudsForm").addEventListener("submit", importWareclouds);
+    $("closeWarecloudsDialog").addEventListener("click", closeImportLogin);
+    $("warecloudsDialog").addEventListener("cancel", event => { event.preventDefault(); closeImportLogin(); });
+    $("helpButton").addEventListener("click", () => { $("screen-import").scrollIntoView({ behavior: "smooth", block: "start" }); showMessage("Toque em Importar e entre com sua conta da Wareclouds. Depois escolha a saída e otimize."); });
     $("parsePaste").addEventListener("click", parsePaste); $("pasteClipboard").addEventListener("click", pasteClipboard);
     $("useLocation").addEventListener("click", setDeviceOrigin);
     els.startAddress.addEventListener("input", () => { if (els.startAddress.value.trim() && els.startAddress.value !== "Localização atual deste aparelho") { state.origin = null; state.originMode = "manual"; state.originLabel = els.startAddress.value.trim(); } });

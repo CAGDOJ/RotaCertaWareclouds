@@ -34,12 +34,14 @@
   function readFollowing(lines, index, names, max = 8) {
     const wanted = new Set(names);
     for (let i = index + 1; i < Math.min(lines.length, index + max + 1); i++) {
-      if (wanted.has(plain(lines[i]))) return clean(lines[i + 1] || "");
+      if (fieldNames.address.includes(plain(lines[i])) || /^\d{7,10}$/.test(lines[i])) break;
+      if (wanted.has(plain(lines[i]))) return knownLabel.has(plain(lines[i + 1])) ? "" : clean(lines[i + 1] || "");
     }
     return "";
   }
   function readNote(lines, index, max = 16) {
     for (let i = index + 1; i < Math.min(lines.length, index + max + 1); i++) {
+      if (fieldNames.address.includes(plain(lines[i])) || /^\d{7,10}$/.test(lines[i])) break;
       if (fieldNames.note.includes(plain(lines[i]))) {
         const parts = [];
         for (let j = i + 1; j < Math.min(lines.length, i + 5); j++) {
@@ -58,13 +60,13 @@
     let currentRef = "";
     for (let i = 0; i < lines.length; i++) {
       if (/^\d{7,10}$/.test(lines[i])) currentRef = lines[i];
-      if (plain(lines[i]) !== "endereco") continue;
+      if (!fieldNames.address.includes(plain(lines[i]))) continue;
       const street = clean(lines[i + 1] || "");
       const city = readFollowing(lines, i, fieldNames.city);
       const block = readFollowing(lines, i, fieldNames.block);
       const zip = readFollowing(lines, i, fieldNames.zip);
       const note = readNote(lines, i);
-      if (!street || !city) continue;
+      if (!street || !city || knownLabel.has(plain(street))) { currentRef = ""; continue; }
       const address = [street, block, city, zip, "Brasil"].filter(Boolean).join(", ");
       result.push({ id: cryptoId(), orderRef: currentRef ? `Pedido ${currentRef}` : `Parada ${result.length + 1}`, street, block, municipality: city, postalCode: zip, note, address, lat: null, lon: null, done: false });
       currentRef = "";
