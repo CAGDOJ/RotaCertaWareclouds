@@ -6,6 +6,16 @@
   "use strict";
   const clean = value => String(value || "").replace(/\s+/g, " ").trim();
   const plain = value => clean(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[:：]+$/u, "").trim();
+  function geocodeQueries(address) {
+    const original = clean(address).replace(/,(?=\S)/g, ", ");
+    const expanded = original.replace(/^\s*(psg|pass)\.?\s+/i, "Passagem ")
+      .replace(/^\s*(tv|trv)\.?\s+/i, "Travessa ")
+      .replace(/^\s*av\.?\s+/i, "Avenida ")
+      .replace(/^\s*r\.?\s+/i, "Rua ")
+      .replace(/^\s*al\.?\s+/i, "Alameda ")
+      .replace(/^\s*rod\.?\s+/i, "Rodovia ");
+    return [...new Set([expanded, original].filter(Boolean))];
+  }
   const fieldNames = {
     address: ["endereco", "endereco de entrega"], city: ["municipio", "municipio de entrega", "cidade", "cidade/uf"], block: ["departamento/de/bloco", "bairro", "complemento"],
     zip: ["cep"], note: ["comentarios", "comentario"]
@@ -132,5 +142,5 @@
     }
     return order;
   }
-  return { parseImport, parseLabeledText, parseCsv, optimizeOrder, routeCost, buildBookmarklet, plain };
+  return { parseImport, parseLabeledText, parseCsv, optimizeOrder, routeCost, buildBookmarklet, plain, geocodeQueries };
 });

@@ -196,16 +196,20 @@
   async function geocode(address, progressMessage) {
     const key = address.toLocaleLowerCase("pt-BR").replace(/\s+/g, " ").trim();
     if (geocodeCache[key]) return geocodeCache[key];
-    const elapsed = Date.now() - state.lastRequestAt;
-    if (state.lastRequestAt && elapsed < 1100) await wait(1100 - elapsed);
-    state.lastRequestAt = Date.now();
-    const url = `${NOMINATIM}?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(address)}`;
-    const response = await fetch(url, { headers: { "Accept-Language": "pt-BR" } });
-    if (response.status === 429) throw new Error("O mapa limitou as consultas. Aguarde um minuto e tente novamente.");
-    if (!response.ok) throw new Error(`O mapa respondeu com erro ${response.status}.`);
-    const results = await response.json();
-    if (!results.length) throw new Error(`Não encontrei “${address}”. Edite essa parada e confira o CEP ou município.`);
-    const point = { lat: Number(results[0].lat), lon: Number(results[0].lon), display: results[0].display_name };
+    let result = null;
+    for (const query of CORE.geocodeQueries(address)) {
+      const elapsed = Date.now() - state.lastRequestAt;
+      if (state.lastRequestAt && elapsed < 1100) await wait(1100 - elapsed);
+      state.lastRequestAt = Date.now();
+      const url = `${NOMINATIM}?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(query)}`;
+      const response = await fetch(url, { headers: { "Accept-Language": "pt-BR" } });
+      if (response.status === 429) throw new Error("O mapa limitou as consultas. Aguarde um minuto e tente novamente.");
+      if (!response.ok) throw new Error(`O mapa respondeu com erro ${response.status}.`);
+      const results = await response.json();
+      if (results.length) { result = results[0]; break; }
+    }
+    if (!result) throw new Error(`Não encontrei “${address}”. Confira o tipo da via, CEP ou município; abreviações como “PSG” são pesquisadas como “Passagem”.`);
+    const point = { lat: Number(result.lat), lon: Number(result.lon), display: result.display_name };
     geocodeCache[key] = point; saveGeocodeCache(geocodeCache);
     if (progressMessage) progressMessage();
     return point;

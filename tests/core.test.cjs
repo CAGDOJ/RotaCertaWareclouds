@@ -1,6 +1,12 @@
 const assert = require("node:assert/strict");
 const vm = require("node:vm");
-const { parseImport, optimizeOrder, routeCost, buildBookmarklet } = require("../dist/core.js");
+const { parseImport, optimizeOrder, routeCost, buildBookmarklet, geocodeQueries } = require("../dist/core.js");
+
+assert.deepEqual(geocodeQueries("PSG PERPETUO SOCORRO,185, Belém, Brasil"), [
+  "Passagem PERPETUO SOCORRO, 185, Belém, Brasil",
+  "PSG PERPETUO SOCORRO, 185, Belém, Brasil"
+]);
+assert.deepEqual(geocodeQueries("Av. Nazaré, 10, Belém"), ["Avenida Nazaré, 10, Belém", "Av. Nazaré, 10, Belém"]);
 
 const warecloudsText = `
 902959898
