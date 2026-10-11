@@ -31,7 +31,7 @@ assert(!JSON.stringify(data).includes('test-password'));
 assert.equal(calls.length, 2);
 assert.equal(calls[0].method, 'POST');
 assert.equal(calls[0].headers.Authorization, `Basic ${btoa('test-user:test-password')}`);
-assert.equal(calls[0].redirect, 'error');
+assert.equal(calls[0].redirect, 'manual');
 assert.equal(calls[1].method, 'GET');
 assert(calls[1].url.endsWith('?filter=&id_city='));
 assert.equal(calls[1].headers.Authorization, 'Bearer fixture-token');
