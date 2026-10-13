@@ -14,7 +14,7 @@ function setup(fetcher) {
     });
     return elements.get(id);
   };
-  const initial = { stops: [{ id: 'old', street: 'Rua antiga, 1', municipality: 'Belém', orderRef: 'antigo', lat: null, lon: null }], orderIds: ['old'] };
+  const initial = { stops: [{ id: 'old', street: 'Rua antiga, 1', municipality: 'Belém', orderRef: 'antigo', lat: -1.16, lon: -48.45 }], orderIds: ['old'], route: { distance: 200000, duration: 9000 } };
   const storage = new Map([[storageKey, JSON.stringify(initial)]]);
   const context = {
     window: { RouteCore: {} }, document: { getElementById: element, querySelectorAll: () => [] },
@@ -49,6 +49,10 @@ async function main() {
   assert(![...app.storage.values()].join('').includes('fixture-password'));
   assert(![...app.storage.values()].join('').includes('fixture-user'));
   const failed = setup(async () => Response.json({ error: 'Confira seu login' }, { status: 401 }));
+  const migrated = JSON.parse(failed.storage.get(storageKey));
+  assert.equal(migrated.stops[0].lat, null);
+  assert.equal(migrated.route, null);
+  assert.equal(migrated.geocodeVersion, 2);
   failed.element('importWareclouds').listeners.click();
   failed.element('warecloudsUsername').value = 'fixture-user'; failed.element('warecloudsPassword').value = 'fixture-password';
   await failed.element('warecloudsForm').listeners.submit({ preventDefault() {} });

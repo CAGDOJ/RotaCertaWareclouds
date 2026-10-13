@@ -2,7 +2,8 @@
   "use strict";
   const CORE = window.RouteCore;
   const STORE_KEY = "rotacerta.mobile.state.v1";
-  const CACHE_KEY = "rotacerta.geocode.cache.v1";
+  const CACHE_KEY = "rotacerta.geocode.cache.v2";
+  const GEOCODE_VERSION = 2;
   const IMPORT_API = "https://rotacerta-mobile.carlosjralfa.chatgpt.site/api/wareclouds/import";
   let importController = null;
   const OSRM = "https://router.project-osrm.org";
@@ -40,6 +41,11 @@
         state.origin = saved.origin || null;
         state.originLabel = saved.originLabel || "";
         state.originMode = saved.originMode || "gps";
+        if (saved.geocodeVersion !== GEOCODE_VERSION) {
+          state.stops.forEach(stop => { stop.lat = null; stop.lon = null; });
+          state.route = null;
+          status(els.routeStatus, "A localização dos pedidos foi atualizada. Toque em Otimizar para conferir os pontos novamente.");
+        }
       }
     } catch (_) { localStorage.removeItem(STORE_KEY); }
   }
@@ -60,7 +66,7 @@
   }
   function persist() {
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify({ stops: state.stops, orderIds: state.orderIds, route: state.route, origin: state.origin, originLabel: state.originLabel, originMode: state.originMode }));
+      localStorage.setItem(STORE_KEY, JSON.stringify({ geocodeVersion: GEOCODE_VERSION, stops: state.stops, orderIds: state.orderIds, route: state.route, origin: state.origin, originLabel: state.originLabel, originMode: state.originMode }));
     } catch (_) { showMessage("Não foi possível salvar: o armazenamento do navegador está cheio."); }
   }
   function setBusy(busy) {
@@ -235,22 +241,23 @@
   function saveGeocodeCache(cache) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch (_) {} }
   const geocodeCache = loadGeocodeCache();
   function wait(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
-  async function geocode(address, progressMessage) {
-    const key = address.toLocaleLowerCase("pt-BR").replace(/\s+/g, " ").trim();
+  async function geocode(address, progressMessage, expected = null) {
+    const key = JSON.stringify([address.toLocaleLowerCase("pt-BR").replace(/\s+/g, " ").trim(), expected?.block || "", expected?.postalCode || ""]);
     if (geocodeCache[key]) return geocodeCache[key];
     let result = null;
     for (const query of CORE.geocodeQueries(address)) {
       const elapsed = Date.now() - state.lastRequestAt;
       if (state.lastRequestAt && elapsed < 1100) await wait(1100 - elapsed);
       state.lastRequestAt = Date.now();
-      const url = `${NOMINATIM}?format=jsonv2&limit=1&countrycodes=br&q=${encodeURIComponent(query)}`;
+      const url = `${NOMINATIM}?format=jsonv2&limit=5&addressdetails=1&countrycodes=br&q=${encodeURIComponent(query)}`;
       const response = await fetch(url, { headers: { "Accept-Language": "pt-BR" } });
       if (response.status === 429) throw new Error("O mapa limitou as consultas. Aguarde um minuto e tente novamente.");
       if (!response.ok) throw new Error(`O mapa respondeu com erro ${response.status}.`);
       const results = await response.json();
-      if (results.length) { result = results[0]; break; }
+      const match = expected ? CORE.selectGeocodeResult(results, expected) : results[0];
+      if (match) { result = match; break; }
     }
-    if (!result) throw new Error(`Não encontrei “${address}”. Confira o tipo da via, CEP ou município; abreviações como “PSG” são pesquisadas como “Passagem”.`);
+    if (!result) throw new Error(`Não confirmei a localização de ${expected?.orderRef || "este endereço"}: “${address}”. Confira CEP, bairro e rua em Editar. Nenhum ponto duvidoso será incluído na rota.`);
     const point = { lat: Number(result.lat), lon: Number(result.lon), display: result.display_name };
     geocodeCache[key] = point; saveGeocodeCache(geocodeCache);
     if (progressMessage) progressMessage();
@@ -314,7 +321,7 @@
         const stop = unique[i];
         if (Number.isFinite(stop.lat) && Number.isFinite(stop.lon)) continue;
         status(els.routeStatus, `Localizando parada ${i + 1} de ${unique.length}. Pode levar alguns segundos por endereço.`);
-        const point = await geocode(stop.address);
+        const point = await geocode(stop.address, null, stop);
         stop.lat = point.lat; stop.lon = point.lon;
         progress(5 + ((i + 1) / unique.length) * 45, true); persist();
       }
@@ -393,9 +400,12 @@
     if (address === null) return;
     const city = prompt("Município:", stop.municipality);
     if (city === null) return;
+    const neighborhood = prompt("Bairro (opcional):", stop.block || "");
+    if (neighborhood === null) return;
     const zip = prompt("CEP (opcional):", stop.postalCode || "");
     if (zip === null) return;
-    stop.street = address.trim(); stop.municipality = city.trim(); stop.postalCode = zip.trim();
+    if (!address.trim() || !city.trim()) { showMessage("Informe a rua e o município para salvar."); return; }
+    stop.street = address.trim(); stop.municipality = city.trim(); stop.block = neighborhood.trim(); stop.postalCode = zip.trim();
     stop.address = [stop.street, stop.block, stop.municipality, stop.postalCode, "Brasil"].filter(Boolean).join(", "); stop.lat = null; stop.lon = null;
     invalidateRoute(); status(els.importStatus, "Endereço atualizado neste aparelho.", "good");
   }

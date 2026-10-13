@@ -17,8 +17,7 @@ assert.deepEqual(geocodeQueries("PSG PERPETUO SOCORRO,185, Belém, Brasil"), [
 assert.deepEqual(geocodeQueries("Av. Nazaré, 10, Belém"), ["Avenida Nazaré, 10, Belém", "Av. Nazaré, 10, Belém"]);
 assert.deepEqual(geocodeQueries("QUATORZE DE MARÇO,1561, Belém, 66055-490, Brasil"), [
   "Travessa Quatorze de Março, 1561, Belém, 66055-490, Brasil",
-  "QUATORZE DE MARÇO, 1561, Belém, 66055-490, Brasil",
-  "66055-490, Belém, Pará, Brasil"
+  "QUATORZE DE MARÇO, 1561, Belém, 66055-490, Brasil"
 ]);
 
 const warecloudsText = `
@@ -108,3 +107,18 @@ assert.equal(noCrossOrder[0].orderRef, 'Pedido 902222222');
 const noCrossZip = parseImport('Endereço\nRua A, 1\nMunicípio\nBelém\nEndereço\nRua B, 2\nMunicípio\nBelém\nCEP\n66000-002');
 assert.equal(noCrossZip[0].postalCode, '');
 assert.equal(noCrossZip[1].postalCode, '66000-002');
+
+const expectedStop = { street: 'Rua Exemplo, 10', municipality: 'Belém', postalCode: '66000-001' };
+const cityPoint = { lat: '-1.45', lon: '-48.49', addresstype: 'road', name: 'Rua Exemplo', address: { road: 'Rua Exemplo', city: 'Belém', state: 'Pará', country_code: 'br', postcode: '66000-001', suburb: 'Centro' } };
+const islandPoint = { ...cityPoint, lat: '-1.16', lon: '-48.45', display_name: 'Rua Exemplo, Mosqueiro, Belém, Pará', address: { ...cityPoint.address, postcode: '66910-000', suburb: 'Mosqueiro' } };
+assert.equal(core.selectGeocodeResult([islandPoint, cityPoint], expectedStop), cityPoint);
+assert.equal(core.selectGeocodeResult([islandPoint], expectedStop), null);
+assert.equal(core.selectGeocodeResult([{ ...islandPoint, address: { ...islandPoint.address, postcode: undefined } }], expectedStop), null);
+assert.equal(core.selectGeocodeResult([islandPoint], { ...expectedStop, postalCode: '66910-000' }), islandPoint);
+assert.equal(core.selectGeocodeResult([{ ...cityPoint, addresstype: 'postcode' }], expectedStop), null);
+assert.equal(core.selectGeocodeResult([{ ...cityPoint, address: { ...cityPoint.address, city: 'Belém', state: 'Paraíba' } }], expectedStop), null);
+assert.equal(core.selectGeocodeResult([{ ...cityPoint, name: 'Rua Outra', address: { ...cityPoint.address, road: 'Rua Outra' } }], expectedStop), null);
+assert.equal(core.selectGeocodeResult([cityPoint, { ...cityPoint, lat: '-1.20' }], expectedStop), null);
+assert.equal(core.selectGeocodeResult([cityPoint], { ...expectedStop, block: 'Guamá' }), null);
+assert.equal(core.selectGeocodeResult([cityPoint], { ...expectedStop, block: 'Belém' }), cityPoint);
+assert.equal(geocodeQueries('RUA PSG TEIXEIRINHA,316, Belém, Brasil')[0], 'Passagem TEIXEIRINHA, 316, Belém, Brasil');

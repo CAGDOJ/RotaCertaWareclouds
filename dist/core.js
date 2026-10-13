@@ -8,7 +8,8 @@
   const plain = value => clean(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[:：]+$/u, "").trim();
   function geocodeQueries(address) {
     const original = clean(address).replace(/,(?=\S)/g, ", ");
-    const expanded = original.replace(/^\s*(psg|pass)\.?\s+/i, "Passagem ")
+    const expanded = original.replace(/^\s*rua\s+(psg|pass)\.?\s+/i, "Passagem ")
+      .replace(/^\s*(psg|pass)\.?\s+/i, "Passagem ")
       .replace(/^\s*(tv|trv)\.?\s+/i, "Travessa ")
       .replace(/^\s*av\.?\s+/i, "Avenida ")
       .replace(/^\s*r\.?\s+/i, "Rua ")
@@ -20,11 +21,46 @@
     const quatorzeVariant = belémQuatorzeDeMarco
       ? original.replace(/^\s*(?:quatorze|14)\s+de\s+mar[cç]o\b/i, "Travessa Quatorze de Março")
       : "";
-    const postalCode = original.match(/\b\d{5}-?\d{3}\b/);
-    const postalQuery = postalCode && /\bbele[mn]\b/.test(normalizedAddress)
-      ? `${postalCode[0]}, Belém, Pará, Brasil`
-      : "";
-    return [...new Set([quatorzeVariant, expanded, original, postalQuery].filter(Boolean))];
+    // A postcode-only result is an area centroid, not a delivery address.
+    return [...new Set([quatorzeVariant, expanded, original].filter(Boolean))];
+  }
+  function selectGeocodeResult(results, expected) {
+    const norm = value => plain(value).replace(/\b14 de (marco|abril)\b/g, "quatorze de $1");
+    const digits = value => clean(value).replace(/\D/g, "");
+    const city = norm(expected.municipality || "");
+    const zip = digits(expected.postalCode || "");
+    const requested = norm([expected.street, expected.block, expected.municipality].filter(Boolean).join(", "));
+    const street = norm((expected.street || "").split(",")[0]).replace(/\b\d+\b/g, " ");
+    const tokens = street.split(/[^a-z0-9]+/).filter(t => t.length > 1 && !["rua", "r", "psg", "pass", "passagem", "av", "avenida", "tv", "trv", "travessa", "al", "alameda", "rod", "rodovia", "de", "da", "do", "das", "dos"].includes(t));
+    const block = norm(expected.block || "");
+    const scored = [];
+    for (const result of Array.isArray(results) ? results : []) {
+      const lat = Number(result.lat), lon = Number(result.lon), a = result.address || {};
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) continue;
+      const type = result.addresstype || result.type;
+      if (["postcode", "city", "town", "village", "suburb", "neighbourhood", "administrative", "municipality", "county", "state", "country"].includes(type) || result.class === "boundary" || result.category === "boundary") continue;
+      if (a.country_code && a.country_code !== "br") continue;
+      const resultCities = [a.city, a.town, a.municipality, a.county, a.village].filter(Boolean).map(norm);
+      if (city && !resultCities.includes(city)) continue;
+      if (city === "belem" && a.state && norm(a.state) !== "para") continue;
+      const actualZip = digits(a.postcode || "");
+      const zipMatches = zip.length === 8 && actualZip === zip;
+      if (zip.length === 8 && actualZip.length === 8 && !zipMatches) continue;
+      const location = norm([result.display_name, a.suburb, a.city_district, a.village].filter(Boolean).join(", "));
+      if (/\bmosqueiro\b/.test(location) && !/\bmosqueiro\b/.test(requested) && !zipMatches) continue;
+      const road = norm(a.road || a.pedestrian || a.residential || result.name || "");
+      if (tokens.length && !tokens.every(token => road.split(/[^a-z0-9]+/).includes(token))) continue;
+      const neighborhoods = [a.suburb, a.neighbourhood, a.quarter, a.city_district].filter(Boolean).map(norm);
+      const blockMatches = block && neighborhoods.some(value => value === block);
+      if (block && block !== city && neighborhoods.length && !blockMatches) continue;
+      scored.push({ result, score: (zipMatches ? 100 : 0) + (blockMatches ? 50 : 0) + (a.house_number ? 10 : 0) });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    if (!scored.length) return null;
+    const first = scored[0];
+    // Equal evidence for distant points means the address still needs review.
+    if (scored.slice(1).some(other => other.score === first.score && Math.hypot(Number(other.result.lat) - Number(first.result.lat), Number(other.result.lon) - Number(first.result.lon)) > 0.01)) return null;
+    return first.result;
   }
   const fieldNames = {
     address: ["endereco", "endereco de entrega"], city: ["municipio", "municipio de entrega", "cidade", "cidade/uf"], block: ["departamento/de/bloco", "bairro", "complemento"],
@@ -154,5 +190,5 @@
     }
     return order;
   }
-  return { parseImport, parseLabeledText, parseCsv, optimizeOrder, routeCost, buildBookmarklet, plain, geocodeQueries };
+  return { parseImport, parseLabeledText, parseCsv, optimizeOrder, routeCost, buildBookmarklet, plain, geocodeQueries, selectGeocodeResult };
 });
