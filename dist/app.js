@@ -103,7 +103,7 @@
   }
   function renderStopCards(container, stops, ordered = false, preview = false) {
     if (!stops.length) {
-      container.innerHTML = `<div class="empty-state"><div class="empty-icon">📦</div><strong>Nenhuma entrega para mostrar</strong>Importe suas paradas da Wareclouds para começar.</div>`;
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">📦</div><strong>Nenhuma entrega para mostrar</strong>Importe suas entregas para começar.</div>`;
       return;
     }
     const allOrdered = orderedStops();
@@ -363,7 +363,7 @@
     }
     const leafletMap = ensureMap(); if (!leafletMap) return;
     routeLayers.forEach(layer => leafletMap.removeLayer(layer)); routeLayers = [];
-    const line = L.geoJSON(state.route.geometry, { style: { color: "#1556c0", weight: 5, opacity: .86, lineCap: "round", lineJoin: "round" } }).addTo(leafletMap);
+    const line = L.geoJSON(state.route.geometry, { style: { color: "#0e7a70", weight: 5, opacity: .86, lineCap: "round", lineJoin: "round" } }).addTo(leafletMap);
     routeLayers.push(line);
     const origin = state.origin;
     if (origin) {
@@ -427,11 +427,11 @@
   }
   function attachEvents() {
     $("importWareclouds").addEventListener("click", openImportLogin);
-    $("openWarecloudsTop").addEventListener("click", openImportLogin);
+    $("openWarecloudsTop").addEventListener("click", () => { $("screen-import").scrollIntoView({ behavior: "smooth", block: "start" }); $("importSPX").focus({ preventScroll: true }); });
     $("warecloudsForm").addEventListener("submit", importWareclouds);
     $("closeWarecloudsDialog").addEventListener("click", closeImportLogin);
     $("warecloudsDialog").addEventListener("cancel", event => { event.preventDefault(); closeImportLogin(); });
-    $("helpButton").addEventListener("click", () => { $("screen-import").scrollIntoView({ behavior: "smooth", block: "start" }); showMessage("Toque em Importar e entre com sua conta da Wareclouds. Depois escolha a saída e otimize."); });
+    $("helpButton").addEventListener("click", () => { $("screen-import").scrollIntoView({ behavior: "smooth", block: "start" }); showMessage("Escolha Wareclouds para entrar com sua conta ou SPX para importar o romaneio Excel."); });
     $("parsePaste").addEventListener("click", parsePaste); $("pasteClipboard").addEventListener("click", pasteClipboard);
     $("useLocation").addEventListener("click", setDeviceOrigin);
     els.startAddress.addEventListener("input", () => { if (els.startAddress.value.trim() && els.startAddress.value !== "Localização atual deste aparelho") { state.origin = null; state.originMode = "manual"; state.originLabel = els.startAddress.value.trim(); } });

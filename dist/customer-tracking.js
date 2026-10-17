@@ -4,7 +4,7 @@
   const params = new URLSearchParams(location.hash.slice(1));
   const routeId = params.get('r'), token = params.get('t');
   const demo = new URLSearchParams(location.search).get('demo') === '1';
-  const truck = '<svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M3 6h11v11H3zm11 4h4l3 4v3h-7" stroke="currentColor" stroke-width="1.6"/><circle cx="7" cy="18" r="2" fill="#1556c0" stroke="currentColor"/><circle cx="18" cy="18" r="2" fill="#1556c0" stroke="currentColor"/></svg>';
+  const truck = '<svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M3 6h11v11H3zm11 4h4l3 4v3h-7" stroke="currentColor" stroke-width="1.6"/><circle cx="7" cy="18" r="2" fill="#0e7a70" stroke="currentColor"/><circle cx="18" cy="18" r="2" fill="#0e7a70" stroke="currentColor"/></svg>';
   let map, destinationMarker, driverMarker, accuracyCircle, lastData = null, timer, inFlight = false;
   function notice(message) { $('trackingNotice').textContent = message; $('trackingNotice').style.display = message ? 'block' : 'none'; }
   function fit() {
@@ -27,7 +27,7 @@
       if (!driverMarker) { driverMarker = L.marker(p, { icon: L.divIcon({ className: 'driver-marker', html: truck, iconSize: [48, 48], iconAnchor: [24, 24] }) }).bindPopup('Entregador').addTo(map); fit(); }
       else driverMarker.setLatLng(p);
       if (accuracyCircle) map.removeLayer(accuracyCircle);
-      accuracyCircle = L.circle(p, { radius: Math.min(Math.max(data.position.accuracy || 30, 20), 1000), color: '#1556c0', weight: 1, fillOpacity: .12 }).addTo(map);
+      accuracyCircle = L.circle(p, { radius: Math.min(Math.max(data.position.accuracy || 30, 20), 1000), color: '#0e7a70', weight: 1, fillOpacity: .12 }).addTo(map);
     } else {
       if (driverMarker) map.removeLayer(driverMarker);
       if (accuracyCircle) map.removeLayer(accuracyCircle);
