@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <title>Rota Certa | Entregas</title>
   <style>
+    [hidden]{display:none!important}.tracking-link-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 0;border-top:1px solid #e2e9f2}.tracking-link-row strong{font-size:12px}.tracking-link-row small{display:block;font-size:10px;color:#738198;margin-top:4px}.tracking-link-row .button{flex:none}
     :root{--blue:#1556c0;--blue-dark:#103b83;--orange:#ff8a24;--ink:#15243a;--muted:#738198;--line:#e2e9f2;--paper:#fff;--canvas:#f3f6fb;--green:#168a62;--red:#c54f49;--shadow:0 12px 34px rgba(31,58,95,.09);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);font-synthesis:none;text-rendering:optimizeLegibility}
     *{box-sizing:border-box}html{background:var(--canvas);scroll-behavior:smooth}body{margin:0;min-width:320px;background:var(--canvas);padding-bottom:calc(90px + env(safe-area-inset-bottom))}button,input,select,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid rgba(21,86,192,.32);outline-offset:2px}
     .app{max-width:720px;margin:auto;min-height:100vh;background:var(--canvas)}.topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;padding:calc(12px + env(safe-area-inset-top)) 18px 12px;background:rgba(255,255,255,.94);backdrop-filter:blur(16px);border-bottom:1px solid rgba(220,228,238,.8)}.brand{display:flex;align-items:center;gap:11px;color:var(--ink);text-decoration:none}.brand-mark{width:40px;height:40px;border-radius:13px;background:linear-gradient(145deg,var(--blue),#347de7);display:grid;place-items:center;color:#fff;font-weight:900;letter-spacing:-1px;box-shadow:0 6px 14px #1556c033}.brand-name{font-weight:850;font-size:16px;letter-spacing:-.4px}.brand-sub{display:block;font-size:10px;font-weight:650;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:2px}.top-actions{display:flex;align-items:center;gap:8px}.tiny-button{border:1px solid var(--line);background:#fff;color:var(--blue);border-radius:12px;padding:10px 12px;font-weight:750;font-size:12px}.icon-button{width:40px;height:40px;border:1px solid var(--line);border-radius:13px;background:#fff;color:var(--ink);font-size:18px}
@@ -88,6 +89,13 @@
           <div class="map-wrap"><div id="map" class="map"></div><div class="map-credit">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div></div>
           <a class="nav-button" id="nextNav" href="#" target="_blank" rel="noopener">↗ Navegar até a próxima parada</a>
           <div class="route-controls"><button class="button secondary small" id="reoptimizeButton" type="button">Recalcular rota</button><button class="button ghost small" id="clearRoute" type="button">Limpar lista</button></div>
+          <div class="card" id="customerTracking" style="margin-top:15px">
+            <div class="step-label">Acompanhamento do cliente</div><h3 style="margin:8px 0">Seu cliente acompanha daqui</h3>
+            <p class="subtle" style="line-height:1.6">Gere um link para cada pedido. Sua localização aparece somente para o próximo cliente. Mantenha esta página aberta no celular durante o trajeto.</p>
+            <div class="inline-actions"><button class="button" id="startTracking" type="button">Iniciar acompanhamento</button><button class="button danger" id="stopTracking" type="button" hidden>Encerrar</button></div>
+            <a href="./acompanhar.html?demo=1" target="_blank" rel="noopener" class="button ghost small" style="margin-top:10px">Ver a tela do cliente</a>
+            <div class="status" id="trackingStatus" role="status" aria-live="polite"></div><div id="customerLinks"></div>
+          </div>
           <div class="toolbar" style="margin-top:17px"><strong style="font-size:13px">Ordem das entregas</strong><select id="resultCityFilter" aria-label="Filtrar paradas do município"><option value="">Todas as paradas</option></select></div>
           <div class="route-list" id="routeList"></div>
           <div class="hint"><span class="hint-icon">⚠️</span><span>Distância e tempo são estimativas de vias, não consideram trânsito nem tempo de atendimento. Confira o endereço e siga as regras de trânsito. Marcar uma parada aqui não confirma a entrega na Wareclouds.</span></div>
@@ -97,7 +105,7 @@
       <section class="section" id="screen-settings">
         <div class="section-heading"><div><div class="step-label"><span class="step-number">⚙</span> Privacidade neste aparelho</div><h2>Seus dados de rota</h2><p>O Rota Certa foi feito para uso individual no celular.</p></div></div>
         <div class="card">
-          <div class="hint" style="margin:0"><span class="hint-icon">📱</span><span>Lista, endereços, paradas concluídas e cache de localização ficam neste navegador. A senha da Wareclouds não é salva pelo Rota Certa.</span></div>
+          <div class="hint" style="margin:0"><span class="hint-icon">📱</span><span>Lista e rota ficam neste navegador. Ao iniciar o acompanhamento, cada link dá acesso somente ao pedido daquele cliente por até 24 horas. A localização aparece apenas para a próxima entrega. A senha da Wareclouds não é salva pelo Rota Certa.</span></div>
           <div class="hint privacy-hint"><span class="hint-icon">🌐</span><span>Ao otimizar, endereços são consultados no OpenStreetMap Nominatim e coordenadas seguem ao OSRM. A rota é calculada por um serviço público e pode ficar indisponível ou ter limites de uso. Para muitos usuários ou uso comercial, será preciso contratar uma plataforma de mapas com capacidade adequada.</span></div>
           <div class="separator"></div>
           <button class="button danger full" id="deleteLocalData" type="button">Apagar dados deste aparelho</button>
@@ -124,6 +132,7 @@
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="./core.js"></script>
+  <script src="./driver-tracking.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

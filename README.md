@@ -39,4 +39,16 @@ node tests/import-flow.test.cjs
 npm run build
 ```
 
-O GitHub Pages serve apenas a interface estática. O serviço de login roda no endereço HTTPS indicado acima; seu build e configuração são mantidos no projeto Sites.
+## Acompanhamento individual do cliente
+
+Após otimizar a rota, toque em **Iniciar acompanhamento**, permita o GPS e compartilhe o link ao lado de cada pedido. A tela do cliente mostra mapa, status e previsão estimada. Enquanto houver outras entregas antes da sua, o cliente vê apenas seu próprio destino; a posição do entregador aparece somente quando ele é o próximo. Marcar a parada como concluída libera o acompanhamento para a seguinte.
+
+Mantenha a página do motorista aberta e o celular com internet. Navegadores de celular podem suspender o GPS com a tela bloqueada ou em segundo plano. A posição é ocultada após 60 segundos sem uma leitura recente; não há garantia de rastreamento em segundo plano. A página do cliente consulta atualizações a cada 15 segundos e não envia mensagens automáticas pelo WhatsApp.
+
+Os links expiram em 24 horas e podem ser encerrados pelo motorista. A previsão considera tempos estimados de direção e três minutos de atendimento entre paradas, sem trânsito ao vivo. Ao ativar, os dados mínimos dos pedidos e a última posição são mantidos no servidor; não é armazenado histórico de posições. Tokens de leitura e de atualização são distintos e somente seus hashes são guardados no banco. O cliente nunca recebe a lista de outros pedidos nem a rota completa. Links e a capacidade de controle do motorista ficam neste aparelho; não os publique.
+
+- `dist/acompanhar.html` e `dist/customer-tracking.js`: tela do cliente; `?demo=1` exibe uma prévia explicitamente ilustrativa.
+- `dist/driver-tracking.js`: controle do GPS e compartilhamento de links pelo motorista.
+- `lib/tracking.mjs` e `app/api/tracking/route.ts`: API de acompanhamento.
+- `db/schema.ts` e `drizzle/`: armazenamento D1 e migrações aplicadas na publicação do servidor.
+- Testes: `node tests/tracking.test.mjs` e `node tests/driver-tracking.test.cjs`, além dos testes existentes.

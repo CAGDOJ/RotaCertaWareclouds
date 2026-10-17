@@ -142,6 +142,7 @@
       renderMap(); updateNextNavigation();
     }
     persist();
+    if (window.RouteTracking) window.RouteTracking.sync(routedStops(), state.route);
   }
   function openImportLogin() {
     if (state.busy) { showMessage("Aguarde o cálculo terminar."); return; }
@@ -337,7 +338,7 @@
       const route = await fetchRoadRoute(roadPoints);
       state.origin = origin; state.originMode = manual && state.originMode !== "gps" ? "manual" : state.originMode; state.originLabel = state.originLabel || (manual ? manual : "Localização atual");
       state.orderIds = ordered.map(stop => stop.id);
-      state.route = { distance: route.distance, duration: route.duration, stopCount: ordered.length, geometry: route.geometry, municipality: els.cityFilter.value || "" };
+      state.route = { distance: route.distance, duration: route.duration, durations: (route.legs || []).map(leg => leg.duration), stopCount: ordered.length, geometry: route.geometry, municipality: els.cityFilter.value || "" };
       progress(100, true); status(els.routeStatus, `Rota pronta: ${ordered.length} paradas organizadas. Confira o primeiro endereço no mapa.`, "good");
       refresh();
       document.getElementById("screen-results").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -411,6 +412,7 @@
   }
   function deleteLocalData() {
     if (!confirm("Apagar as entregas, a rota e o cache deste aparelho?")) return;
+    if (window.RouteTracking) window.RouteTracking.clear();
     localStorage.removeItem(STORE_KEY); localStorage.removeItem(CACHE_KEY);
     state.stops = []; state.orderIds = []; state.route = null; state.origin = null; state.originLabel = ""; state.originMode = "gps";
     els.startAddress.value = ""; els.pasteBox.value = ""; els.shareConsent.checked = false;
