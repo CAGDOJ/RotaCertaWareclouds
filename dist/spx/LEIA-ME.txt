@@ -1,0 +1,27 @@
+ROTA CERTA SPX — TESTE
+
+Abra index.html pelo link HTTPS publicado, no Chrome do Android.
+1. Importe o romaneio .xlsx baixado no aplicativo SPX.
+2. Autorize o mapa e ative o GPS.
+3. Selecione uma parada e toque em Navegar.
+4. Use Parada / Retomar para pausas. Concluir registra somente neste gerenciador.
+5. Crie links individuais para receber respostas de pré-entrega.
+6. Cadastre o telefone e toque em Avisar pelo WhatsApp. Confirme o envio no WhatsApp.
+
+Esta versão não faz envio automático de WhatsApp nem acessa sua conta SPX.
+O romaneio é lido no aparelho. Ao criar links, códigos, endereços e coordenadas
+são enviados ao servidor por até 24 horas. A posição é visível somente ao cliente
+da entrega em atendimento. Cada link permite ler e responder somente seu pedido.
+Não há login de conta nesta versão: o navegador guarda a chave privada da rota.
+O backup contém essas chaves. Não envie esse arquivo a clientes.
+
+Mantenha esta página aberta em primeiro plano durante o teste de GPS e distância.
+O Android pode suspender o navegador ao bloquear a tela ou abrir Maps/WhatsApp.
+Lacunas de GPS não são inventadas; a quilometragem pode ficar incompleta.
+O tempo usa o relógio do aparelho. Reabrir a página interrompe o atendimento
+ativo, que precisa ser iniciado novamente em Navegar.
+
+Distância até a parada: serviço público OSRM, sem trânsito ao vivo, sem garantia
+de disponibilidade. Ordem por proximidade: sugestão geométrica, não uma promessa
+de rota ótima nem de respeito ao sentido das ruas. Confira no Maps/Waze.
+Mapa: OpenStreetMap/Leaflet. Requer internet. Não é APK e não é produto oficial SPX.
